@@ -15,6 +15,9 @@
   --danger-soft: rgba(239, 68, 68, 0.14);
   --on-primary: #ffffff;
   --shadow: rgba(0, 0, 0, 0.3);
+  --z-navigation: 40;
+  --z-overlay: 100;
+  --z-modal: 110;
   --display: 'Barlow Condensed', sans-serif;
   color: var(--text);
   background: var(--bg);
@@ -26,11 +29,16 @@
 
 * { box-sizing: border-box; }
 
+html,
+body,
+#root { min-height: 100dvh; width: 100%; }
+
 body {
   background: radial-gradient(circle at 80% -10%, var(--surface-strong) 0, transparent 34rem), var(--bg);
   margin: 0;
-  min-width: 320px;
-  min-height: 100svh;
+  min-width: 0;
+  min-height: 100dvh;
+  overflow-x: hidden;
 }
 
 button, input { font: inherit; }

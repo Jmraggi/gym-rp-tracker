@@ -5,64 +5,95 @@ import { AppHeader } from '../components/layout/AppHeader'
 import { PrivateNavigation } from '../components/layout/PrivateNavigation'
 import { getExercises } from '../features/exercises/exercises.service'
 import { exerciseCategoryLabels } from '../features/exercises/exercises.types'
-import type { Exercise, ExerciseCategory } from '../features/exercises/exercises.types'
-import { PersonalRecordModal } from '../features/personal-records/PersonalRecordModal'
-import { getPersonalRecordSummaries } from '../features/personal-records/personalRecords.service'
-import type { PersonalRecordSummary } from '../features/personal-records/personalRecords.types'
+import type { Exercise } from '../features/exercises/exercises.types'
+import { getChartPoints, getDashboardSummary, getExerciseProgress, getPersonalRecordSummariesFromRecords, getRecentRecords } from '../features/dashboard/dashboard.service'
+import { ProgressChart } from '../features/dashboard/ProgressChart'
+import type { ExerciseProgress } from '../features/dashboard/dashboard.types'
+import { PersonalRecordHistory } from '../features/personal-records/components/PersonalRecordHistory'
+import { getPersonalRecords } from '../features/personal-records/personalRecords.service'
+import type { PersonalRecord } from '../features/personal-records/personalRecords.types'
+import { useQuickAddPersonalRecord } from '../features/personal-records/useQuickAddPersonalRecord'
 import { supabase } from '../lib/supabase'
 
-interface ProfileSummary { display_name: string | null; avatar_url: string | null; default_bar_weight: number; rounding_mode: string }
-const categoryOrder: ExerciseCategory[] = ['squat', 'snatch', 'clean', 'clean_and_jerk', 'jerk', 'strength', 'press', 'other']
+interface ProfileSummary { display_name: string | null; avatar_url: string | null }
 const formatDate = (date: string): string => new Date(`${date}T12:00:00`).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })
 const formatWeight = (weight: number): string => weight.toLocaleString('es-AR', { maximumFractionDigits: 2 })
+const byRecentOrder = (left: PersonalRecord, right: PersonalRecord): number => right.achievedAt.localeCompare(left.achievedAt) || right.createdAt.localeCompare(left.createdAt)
 
 export function DashboardPage() {
   const { user } = useAuth()
+  const { openQuickAddPersonalRecord } = useQuickAddPersonalRecord()
   const navigate = useNavigate()
   const [profile, setProfile] = useState<ProfileSummary | null>(null)
-  const [plateCount, setPlateCount] = useState<number | null>(null)
   const [exercises, setExercises] = useState<Exercise[]>([])
-  const [summaries, setSummaries] = useState<PersonalRecordSummary[]>([])
+  const [records, setRecords] = useState<PersonalRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [recordsLoading, setRecordsLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [modalExerciseId, setModalExerciseId] = useState<string | null>(null)
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null)
 
   const refreshRecords = useCallback(async () => {
-    const [nextExercises, nextSummaries] = await Promise.all([getExercises(), getPersonalRecordSummaries()])
+    const [nextExercises, nextRecords] = await Promise.all([getExercises(), getPersonalRecords()])
     setExercises(nextExercises)
-    setSummaries(nextSummaries)
+    setRecords(nextRecords)
+    return { exercises: nextExercises, records: nextRecords }
   }, [])
 
   useEffect(() => {
     if (!user) return
     let active = true
     const loadDashboard = async () => {
-      setLoading(true); setRecordsLoading(true)
-      const [profileResponse, platesResponse, recordsResponse] = await Promise.all([
-        supabase.from('profiles').select('display_name, avatar_url, default_bar_weight, rounding_mode').eq('id', user.id).maybeSingle(),
-        supabase.from('user_plates').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-        Promise.all([getExercises(), getPersonalRecordSummaries()]),
+      setLoading(true)
+      setRecordsLoading(true)
+      const [profileResponse, dashboardData] = await Promise.all([
+        supabase.from('profiles').select('display_name, avatar_url').eq('id', user.id).maybeSingle(),
+        Promise.all([getExercises(), getPersonalRecords()]),
       ])
       if (!active) return
-      if (profileResponse.error || platesResponse.error) setMessage('No se pudieron cargar tus datos de cuenta. Revisá la conexión e intentá nuevamente.')
-      else { setProfile(profileResponse.data); setPlateCount(platesResponse.count ?? 0) }
-      const [nextExercises, nextSummaries] = recordsResponse
-      setExercises(nextExercises); setSummaries(nextSummaries); setLoading(false); setRecordsLoading(false)
+      if (profileResponse.error) setMessage('No se pudieron cargar tus datos de cuenta. Revisá la conexión e intentá nuevamente.')
+      else setProfile(profileResponse.data)
+      setExercises(dashboardData[0])
+      setRecords(dashboardData[1])
+      setLoading(false)
+      setRecordsLoading(false)
     }
-    void loadDashboard().catch((error: unknown) => { if (active) { setMessage(error instanceof Error ? `No se pudieron cargar tus PRs: ${error.message}` : 'No se pudieron cargar tus PRs.'); setLoading(false); setRecordsLoading(false) } })
+    void loadDashboard().catch((error: unknown) => {
+      if (!active) return
+      setMessage(error instanceof Error ? `No se pudieron cargar tus PRs: ${error.message}` : 'No se pudieron cargar tus PRs.')
+      setLoading(false)
+      setRecordsLoading(false)
+    })
     return () => { active = false }
   }, [user])
 
-  const orderedSummaries = useMemo(() => [...summaries].sort((a, b) => categoryOrder.indexOf(a.exercise.category) - categoryOrder.indexOf(b.exercise.category) || a.exercise.sortOrder - b.exercise.sortOrder || a.exercise.name.localeCompare(b.exercise.name)), [summaries])
-  const selectedSummary = orderedSummaries.find((summary) => summary.exercise.id === selectedExerciseId) ?? null
-  const latestRecord = useMemo(() => summaries.map((summary) => summary.latestRecord).sort((a, b) => b.achievedAt.localeCompare(a.achievedAt) || b.createdAt.localeCompare(a.createdAt))[0], [summaries])
-  const totalRecords = summaries.reduce((total, summary) => total + summary.recordCount, 0)
-  const accountName = profile?.display_name || user?.email || 'Usuario'
-  const handleSaved = async (_exerciseId: string) => { try { await refreshRecords(); setRecordsLoading(false); setSuccessMessage('PR guardado correctamente.') } catch (error) { setMessage(error instanceof Error ? `El PR se guardó, pero no se pudo actualizar la lista: ${error.message}` : 'El PR se guardó, pero no se pudo actualizar la lista.') } }
-  const toggleDetail = (exerciseId: string) => setSelectedExerciseId((current) => current === exerciseId ? null : exerciseId)
+  useEffect(() => {
+    const refreshAfterRecordChange = () => { void refreshRecords().catch(() => setMessage('No se pudo actualizar el dashboard.')) }
+    window.addEventListener('personal-records-updated', refreshAfterRecordChange)
+    return () => window.removeEventListener('personal-records-updated', refreshAfterRecordChange)
+  }, [refreshRecords])
 
-  return <main className="app-shell dashboard-page"><AppHeader /><PrivateNavigation /><section className="dashboard-hero"><div className="private-identity">{profile?.avatar_url ? <img alt="" className="account-avatar" src={profile.avatar_url} /> : <span className="account-avatar account-avatar-fallback" aria-hidden="true">{accountName.slice(0, 1).toUpperCase()}</span>}<div><span className="account-kicker">Sesión activa</span><h1>Hola, {accountName}</h1></div></div><button className="add-pr-button" disabled={loading || exercises.length === 0} onClick={() => { setSuccessMessage(null); setModalExerciseId('') }} type="button">+ Agregar PR</button></section>{loading ? <p className="account-status">Cargando tu configuración…</p> : <div className="account-stats dashboard-stats"><span><b>{profile?.default_bar_weight ?? '—'}{profile ? ' kg' : ''}</b>barra</span><span><b>{profile?.rounding_mode === 'nearest' ? 'Cercano' : profile ? 'Abajo' : '—'}</b>ajuste</span><span><b>{plateCount ?? '—'}</b>discos</span></div>}<section className="pr-section"><div className="pr-section-heading"><div><p className="eyebrow">HISTORIAL</p><h2>Mis PRs</h2></div><div className="pr-summary"><span><b>{summaries.length}</b> ejercicios</span><span><b>{totalRecords}</b> marcas</span>{latestRecord && <span><b>{formatDate(latestRecord.achievedAt)}</b> última</span>}</div></div>{recordsLoading ? <p className="account-status">Cargando tus récords…</p> : orderedSummaries.length === 0 ? <div className="records-placeholder"><strong>Todavía no registraste ningún PR.</strong><p>Agregá tu primera marca para empezar a construir tu historial.</p></div> : <><div className="pr-button-grid">{orderedSummaries.map((summary) => <button aria-controls={`pr-detail-${summary.exercise.id}`} aria-expanded={summary.exercise.id === selectedExerciseId} className={`pr-exercise-button${summary.exercise.id === selectedExerciseId ? ' is-active' : ''}`} key={summary.exercise.id} onClick={() => toggleDetail(summary.exercise.id)} type="button"><span>{summary.exercise.name}</span><small>{formatWeight(summary.bestRecord.weight)} kg</small></button>)}</div>{selectedSummary && <article className="pr-detail" id={`pr-detail-${selectedSummary.exercise.id}`}><div><span className="pr-category">{exerciseCategoryLabels[selectedSummary.exercise.category]}</span><h3>{selectedSummary.exercise.name}</h3></div><div className="pr-detail-values"><div><span>Mejor PR</span><strong>{formatWeight(selectedSummary.bestRecord.weight)} kg</strong><small>{formatDate(selectedSummary.bestRecord.achievedAt)}</small></div><div><span>Último registro</span><strong>{formatWeight(selectedSummary.latestRecord.weight)} kg</strong><small>{formatDate(selectedSummary.latestRecord.achievedAt)}</small></div><div><span>Registros</span><strong>{selectedSummary.recordCount}</strong><small>en total</small></div></div><div className="pr-detail-actions"><button className="detail-primary" onClick={() => navigate({ pathname: '/calculator', search: `?exercise=${selectedSummary.exercise.id}` })} type="button">Usar en calculadora</button><button className="detail-secondary" onClick={() => setModalExerciseId(selectedSummary.exercise.id)} type="button">Agregar nueva marca</button></div></article>}</>}</section>{successMessage && <p className="auth-message" role="status">{successMessage}</p>}{message && <p className="auth-message is-error" role="alert">{message}</p>}{modalExerciseId !== null && <PersonalRecordModal exercises={exercises} initialExerciseId={modalExerciseId} key={modalExerciseId} onClose={() => setModalExerciseId(null)} onSaved={handleSaved} />}</main>
+  const summaries = useMemo(() => getPersonalRecordSummariesFromRecords(exercises, records), [exercises, records])
+  const dashboardSummary = useMemo(() => getDashboardSummary(exercises, records), [exercises, records])
+  const recentRecords = useMemo(() => getRecentRecords(exercises, records), [exercises, records])
+  const mainSummaries = useMemo(() => [...summaries].sort((left, right) => byRecentOrder(left.latestRecord, right.latestRecord)).slice(0, 6), [summaries])
+  const progressByExercise = useMemo(() => summaries.flatMap((summary) => {
+    const progress = getExerciseProgress(summary.exercise, records)
+    return progress ? [progress] : []
+  }), [records, summaries])
+  const chartProgresses = useMemo(() => progressByExercise.filter((progress) => progress.records.length >= 2), [progressByExercise])
+  const selectedSummary = summaries.find((summary) => summary.exercise.id === selectedExerciseId) ?? null
+  const selectedProgress: ExerciseProgress | null = progressByExercise.find((progress) => progress.exercise.id === selectedExerciseId) ?? null
+  const chartPoints = useMemo(() => getChartPoints(selectedProgress), [selectedProgress])
+  const accountName = profile?.display_name || user?.email || 'Usuario'
+
+  useEffect(() => {
+    if (chartProgresses.some((progress) => progress.exercise.id === selectedExerciseId)) return
+    setSelectedExerciseId(chartProgresses[0]?.exercise.id ?? summaries[0]?.exercise.id ?? null)
+  }, [chartProgresses, selectedExerciseId, summaries])
+
+  const handleHistoryChanged = async () => { await refreshRecords() }
+  const openExercise = (exerciseId: string) => setSelectedExerciseId(exerciseId)
+  const openNewRecord = (exerciseId = '') => openQuickAddPersonalRecord(exerciseId)
+
+  return <main className="app-shell dashboard-page"><AppHeader /><PrivateNavigation /><section className="dashboard-hero dashboard-hero--compact"><div className="private-identity">{profile?.avatar_url ? <img alt="" className="account-avatar" src={profile.avatar_url} /> : <span aria-hidden="true" className="account-avatar account-avatar-fallback">{accountName.slice(0, 1).toUpperCase()}</span>}<div><span className="account-kicker">RESUMEN DE ENTRENAMIENTO</span><h1 className={accountName.includes('@') ? 'account-email-title' : ''}>Hola, {accountName}</h1></div></div><button className="add-pr-button" disabled={loading || exercises.length === 0} onClick={() => openNewRecord()} type="button">+ Agregar PR</button></section>{loading || recordsLoading ? <p className="account-status">Cargando tu dashboard…</p> : records.length === 0 ? <section className="dashboard-empty"><p className="eyebrow">EMPEZÁ ACÁ</p><h2>Todavía no registraste ningún PR.</h2><p>Agregá tu primera marca para ver tu evolución y tus métricas de entrenamiento.</p><button className="add-pr-button" disabled={exercises.length === 0} onClick={() => openNewRecord()} type="button">Agregar mi primer PR</button></section> : <><section aria-label="Métricas principales" className="dashboard-metrics"><article><span>Total de registros</span><strong>{dashboardSummary.totalRecords}</strong></article><article><span>Ejercicios con PR</span><strong>{dashboardSummary.exerciseCount}</strong></article><article><span>Último PR</span>{dashboardSummary.latestRecord ? <><strong>{formatWeight(dashboardSummary.latestRecord.record.weight)} <small>kg</small></strong><p>{dashboardSummary.latestRecord.exercise.name} · {formatDate(dashboardSummary.latestRecord.record.achievedAt)}</p></> : <p>Sin registros</p>}</article><article><span>Mejora más reciente</span>{dashboardSummary.latestImprovement ? <><strong>+{formatWeight(dashboardSummary.latestImprovement.difference)} <small>kg</small></strong><p>{dashboardSummary.latestImprovement.exercise.name} · {formatDate(dashboardSummary.latestImprovement.record.achievedAt)}</p></> : <p>Sin mejoras recientes</p>}</article></section><section className="dashboard-content-grid"><article className="dashboard-card dashboard-evolution"><div className="dashboard-card__heading"><div><p className="eyebrow">HISTORIAL</p><h2>Evolución</h2></div><label>Ejercicio<select aria-label="Ejercicio para el gráfico" disabled={chartProgresses.length === 0} onChange={(event) => setSelectedExerciseId(event.target.value)} value={chartProgresses.some((progress) => progress.exercise.id === selectedExerciseId) ? selectedExerciseId ?? '' : ''}><option value="">Elegí un ejercicio</option>{chartProgresses.map((progress) => <option key={progress.exercise.id} value={progress.exercise.id}>{progress.exercise.name}</option>)}</select></label></div><ProgressChart progress={selectedProgress && chartPoints.length >= 2 ? selectedProgress : null} />{selectedProgress && <div className="exercise-progress"><span><b>Primer registro</b>{formatWeight(selectedProgress.firstRecord.weight)} kg</span><span><b>Mejor registro</b>{formatWeight(selectedProgress.bestRecord.weight)} kg</span><span><b>Progreso total</b>{selectedProgress.totalProgress >= 0 ? '+' : ''}{formatWeight(selectedProgress.totalProgress)} kg</span><span><b>Registros</b>{selectedProgress.records.length}</span></div>}</article><article className="dashboard-card dashboard-top-prs"><div className="dashboard-card__heading"><div><p className="eyebrow">RENDIMIENTO</p><h2>Principales PRs</h2></div></div><div className="dashboard-list">{mainSummaries.map((summary) => <button aria-expanded={summary.exercise.id === selectedExerciseId} className={`dashboard-list__item${summary.exercise.id === selectedExerciseId ? ' is-active' : ''}`} key={summary.exercise.id} onClick={() => openExercise(summary.exercise.id)} type="button"><span><b>{summary.exercise.name}</b><small>{formatDate(summary.bestRecord.achievedAt)}</small></span><strong>{formatWeight(summary.bestRecord.weight)} <small>kg</small></strong></button>)}</div></article><article className="dashboard-card dashboard-recent"><div className="dashboard-card__heading"><div><p className="eyebrow">ÚLTIMOS REGISTROS</p><h2>Actividad reciente</h2></div></div><div className="dashboard-activity">{recentRecords.map(({ exercise, record }) => <article key={record.id}><div><b>{exercise.name}</b><span>{formatDate(record.achievedAt)}</span>{record.notes && <p>{record.notes}</p>}</div><strong>{formatWeight(record.weight)} <small>kg</small></strong></article>)}</div></article></section>{selectedSummary && <section className="dashboard-selected-detail" id={`pr-detail-${selectedSummary.exercise.id}`}><div className="dashboard-card__heading"><div><p className="eyebrow">{exerciseCategoryLabels[selectedSummary.exercise.category]}</p><h2>{selectedSummary.exercise.name}</h2></div><button className="detail-secondary" onClick={() => openNewRecord(selectedSummary.exercise.id)} type="button">Agregar nueva marca</button></div><div className="pr-detail-values"><div><span>Mejor PR</span><strong>{formatWeight(selectedSummary.bestRecord.weight)} kg</strong><small>{formatDate(selectedSummary.bestRecord.achievedAt)}</small></div><div><span>Último registro</span><strong>{formatWeight(selectedSummary.latestRecord.weight)} kg</strong><small>{formatDate(selectedSummary.latestRecord.achievedAt)}</small></div><div><span>Registros</span><strong>{selectedSummary.recordCount}</strong><small>en total</small></div></div><div className="pr-detail-actions"><button className="detail-primary" onClick={() => navigate({ pathname: '/calculator', search: `?exercise=${selectedSummary.exercise.id}` })} type="button">Usar en calculadora</button><button className="detail-secondary" onClick={() => openNewRecord(selectedSummary.exercise.id)} type="button">Agregar nueva marca</button></div><PersonalRecordHistory exercises={exercises} onChanged={handleHistoryChanged} summary={selectedSummary} /></section>}</>}{message && <p className="auth-message is-error" role="alert">{message}</p>}</main>
 }

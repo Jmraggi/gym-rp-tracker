@@ -43,6 +43,24 @@ export function AuthenticatedCalculatorSource({ mode, initialExerciseId, onModeC
     return () => { active = false }
   }, [refresh])
 
+  useEffect(() => {
+    const handleRecordsChanged = () => {
+      void refresh().then((nextSummaries) => {
+        const refreshed = nextSummaries.find((summary) => summary.exercise.id === selectedExerciseId)
+        if (selectedExerciseId && !refreshed) {
+          setSelectedExerciseId('')
+          setSearch('')
+          onWeightChange('')
+        } else if (refreshed) {
+          setSearch(refreshed.exercise.name)
+          onWeightChange(String(refreshed.bestRecord.weight))
+        }
+      }).catch((error: unknown) => setMessage(error instanceof Error ? `No se pudieron actualizar tus PRs: ${error.message}` : 'No se pudieron actualizar tus PRs.'))
+    }
+    window.addEventListener('personal-records-updated', handleRecordsChanged)
+    return () => window.removeEventListener('personal-records-updated', handleRecordsChanged)
+  }, [onWeightChange, refresh, selectedExerciseId])
+
   const selectedSummary = summaries.find((summary) => summary.exercise.id === selectedExerciseId) ?? null
   const filteredSummaries = useMemo(() => summaries.filter((summary) => normalize(summary.exercise.name).includes(normalize(search))), [search, summaries])
 

@@ -1,9 +1,11 @@
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { CalculatorPage } from './pages/CalculatorPage'
+import { AccountPage } from './pages/AccountPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
 import { WelcomePage } from './pages/WelcomePage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
+import { PrivateShell } from './routes/PrivateShell'
 import './App.css'
 
 function App() {
@@ -13,7 +15,10 @@ function App() {
       <Route element={<LoginPage />} path="/login" />
       <Route element={<CalculatorPage />} path="/calculator" />
       <Route element={<ProtectedRoute />}>
-        <Route element={<DashboardPage />} path="/dashboard" />
+        <Route element={<PrivateShell />}>
+          <Route element={<DashboardPage />} path="/dashboard" />
+          <Route element={<AccountPage />} path="/account" />
+        </Route>
       </Route>
       <Route element={<Navigate replace to="/" />} path="*" />
     </Routes>
