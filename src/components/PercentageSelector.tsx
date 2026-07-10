@@ -1,0 +1,4 @@
+import { AVAILABLE_PERCENTAGES } from '../constants/gym'
+import type { Percentage } from '../domain/calculator.types'
+interface PercentageSelectorProps { selectedPercentages: Percentage[]; onToggle: (percentage: Percentage) => void }
+export function PercentageSelector({ selectedPercentages, onToggle }: PercentageSelectorProps) { return <section className="percentage-section"><span className="section-label">Porcentajes</span><div className="percentage-grid">{AVAILABLE_PERCENTAGES.map((percentage) => { const selected = selectedPercentages.includes(percentage); return <button aria-pressed={selected} className={`percentage-button${selected ? ' is-active' : ''}`} key={percentage} onClick={() => onToggle(percentage)} type="button">{percentage}%</button> })}</div></section> }

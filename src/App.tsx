@@ -1,122 +1,32 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useMemo, useState } from 'react'
+import { CalculatorForm } from './components/CalculatorForm'
+import { PercentageSelector } from './components/PercentageSelector'
+import { ResultsList } from './components/ResultsList'
+import { DEFAULT_PERCENTAGES } from './constants/gym'
+import { calculatePercentageResult, parseKilograms } from './domain/calculator'
+import type { BarWeight, Percentage, RoundingMethod } from './domain/calculator.types'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+  const [rpInput, setRpInput] = useState('')
+  const [barWeight, setBarWeight] = useState<BarWeight>(20)
+  const [roundingMethod, setRoundingMethod] = useState<RoundingMethod>('nearest')
+  const [selectedPercentages, setSelectedPercentages] = useState<Percentage[]>(DEFAULT_PERCENTAGES)
+  const validationMessage = useMemo(() => {
+    const rp = parseKilograms(rpInput)
+    if (rpInput.trim() === '') return 'Ingresá tu RP para ver los pesos de trabajo.'
+    if (rp === null || rp <= 0) return 'Ingresá un RP válido mayor que cero.'
+    if (rp < barWeight * 100) return `El RP debe ser igual o mayor que la barra de ${barWeight} kg.`
+    return null
+  }, [barWeight, rpInput])
+  const results = useMemo(() => {
+    const rp = parseKilograms(rpInput)
+    if (rp === null || validationMessage !== null) return []
+    return selectedPercentages.map((percentage) => calculatePercentageResult(rp, percentage, barWeight, roundingMethod))
+  }, [barWeight, roundingMethod, rpInput, selectedPercentages, validationMessage])
+  const togglePercentage = (percentage: Percentage) => {
+    setSelectedPercentages((current) => current.includes(percentage) ? current.filter((item) => item !== percentage) : [...current, percentage].sort((a, b) => a - b))
+  }
+  return <main className="app-shell"><header className="app-header"><p className="eyebrow">ENTRENAMIENTO · CARGA</p><h1>Armá tu próxima serie.</h1><p className="intro">Porcentajes reales, discos exactos por lado.</p></header><section className="calculator-panel" aria-label="Calculadora de porcentajes"><CalculatorForm barWeight={barWeight} onBarWeightChange={setBarWeight} onRpInputChange={setRpInput} onRoundingMethodChange={setRoundingMethod} roundingMethod={roundingMethod} rpInput={rpInput} /><PercentageSelector onToggle={togglePercentage} selectedPercentages={selectedPercentages} /></section><ResultsList message={validationMessage} results={results} showEmptySelection={validationMessage === null && selectedPercentages.length === 0} /></main>
 }
-
 export default App
