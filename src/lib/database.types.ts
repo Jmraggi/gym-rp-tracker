@@ -25,6 +25,12 @@ export interface Database {
         Update: { weight?: number; quantity?: number | null; enabled?: boolean; updated_at?: string }
         Relationships: []
       }
+      workout_sessions: {
+        Row: { id: string; user_id: string; trained_at: string; created_at: string }
+        Insert: { id?: string; user_id: string; trained_at?: string; created_at?: string }
+        Update: { trained_at?: string }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>
