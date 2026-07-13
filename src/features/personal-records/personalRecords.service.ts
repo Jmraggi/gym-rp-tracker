@@ -19,6 +19,28 @@ export const getPersonalRecords = async (): Promise<PersonalRecord[]> => {
   return data.map(toPersonalRecord)
 }
 
+export async function getPersonalRecordsPage({ exerciseId, offset, limit }: { exerciseId?: string; offset: number; limit: number }): Promise<{ records: PersonalRecord[]; hasMore: boolean }> {
+  let query = supabase.from('personal_records').select('id, user_id, exercise_id, weight, achieved_at, notes, created_at, updated_at').order('achieved_at', { ascending: false }).order('created_at', { ascending: false })
+  if (exerciseId) query = query.eq('exercise_id', exerciseId)
+  const { data, error } = await query.range(offset, offset + limit)
+  if (error) throw new Error(error.message)
+  return { records: data.slice(0, limit).map(toPersonalRecord), hasMore: data.length > limit }
+}
+
+export async function getPersonalRecordCount(exerciseId?: string): Promise<number> {
+  let query = supabase.from('personal_records').select('id', { count: 'exact', head: true })
+  if (exerciseId) query = query.eq('exercise_id', exerciseId)
+  const { count, error } = await query
+  if (error) throw new Error(error.message)
+  return count ?? 0
+}
+
+export async function getPersonalRecordExerciseIds(): Promise<Set<string>> {
+  const { data, error } = await supabase.from('personal_records').select('exercise_id')
+  if (error) throw new Error(error.message)
+  return new Set(data.map((record) => record.exercise_id))
+}
+
 export const createPersonalRecord = async (formData: PersonalRecordFormData): Promise<PersonalRecord> => {
   const userId = await getSessionUserId()
   const { data, error } = await supabase.from('personal_records').insert({ user_id: userId, exercise_id: formData.exerciseId, weight: formData.weight, achieved_at: formData.achievedAt, notes: formData.notes }).select('id, user_id, exercise_id, weight, achieved_at, notes, created_at, updated_at').single()
