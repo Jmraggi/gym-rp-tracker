@@ -7,10 +7,13 @@ import { LoginPage } from './pages/LoginPage'
 import { WelcomePage } from './pages/WelcomePage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { PrivateShell } from './routes/PrivateShell'
+import { PwaUpdatePrompt } from './components/PwaUpdatePrompt'
 import './App.css'
 
 function App() {
-  return <HashRouter>
+  return <>
+    <PwaUpdatePrompt />
+    <HashRouter>
     <Routes>
       <Route element={<WelcomePage />} path="/" />
       <Route element={<LoginPage />} path="/login" />
@@ -24,7 +27,8 @@ function App() {
       </Route>
       <Route element={<Navigate replace to="/" />} path="*" />
     </Routes>
-  </HashRouter>
+    </HashRouter>
+  </>
 }
 
 export default App
