@@ -16,7 +16,7 @@ const getSpanishAuthError = (message: string): string => {
 }
 
 export function LoginPage() {
-  const { loading, signIn, signUp, user } = useAuth()
+  const { loading, signIn, signInWithGoogle, signUp, user } = useAuth()
   const navigate = useNavigate()
   const [mode, setMode] = useState<AuthMode>('sign-in')
   const [email, setEmail] = useState('')
@@ -43,5 +43,16 @@ export function LoginPage() {
     else setErrorMessage('Revisá tu email para confirmar tu cuenta antes de iniciar sesión.')
   }
 
-  return <main className="app-shell auth-page"><AppHeader backToWelcome /><section className="login-card"><p className="eyebrow">CUENTA</p><h1>Iniciar sesión</h1><p className="intro">Guardá tus ejercicios, récords y preferencias para retomarlos cuando quieras.</p><button className="google-button google-button-disabled" disabled type="button"><span className="google-mark" aria-hidden="true">G</span>Continuar con Google — próximamente</button><div className="login-divider"><span>o usá tu email</span></div><div className="auth-tabs"><button className={mode === 'sign-in' ? 'is-active' : ''} disabled={submitting} onClick={() => { setMode('sign-in'); setErrorMessage(null) }} type="button">Entrar</button><button className={mode === 'sign-up' ? 'is-active' : ''} disabled={submitting} onClick={() => { setMode('sign-up'); setErrorMessage(null) }} type="button">Crear cuenta</button></div><form className="auth-form login-form" onSubmit={(event) => void handleSubmit(event)}><label>Email<input autoComplete="email" disabled={submitting} onChange={(event) => setEmail(event.target.value)} required type="email" value={email} /></label><label>Contraseña<input autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'} disabled={submitting} minLength={6} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} /></label><button className="auth-submit" disabled={submitting} type="submit">{submitting ? 'Procesando…' : mode === 'sign-in' ? 'Iniciar sesión' : 'Crear cuenta'}</button></form>{errorMessage && <p className="auth-message is-error" role="alert">{errorMessage}</p>}</section></main>
+  const handleGoogleSignIn = async () => {
+    setErrorMessage(null)
+    setSubmitting(true)
+    const error = await signInWithGoogle()
+
+    if (error) {
+      setErrorMessage(`No se pudo iniciar sesión con Google. ${getSpanishAuthError(error.message)}`)
+      setSubmitting(false)
+    }
+  }
+
+  return <main className="app-shell auth-page"><AppHeader backToWelcome /><section className="login-card"><p className="eyebrow">CUENTA</p><h1>Iniciar sesión</h1><p className="intro">Guardá tus ejercicios, récords y preferencias para retomarlos cuando quieras.</p><button className="google-button" disabled={submitting} onClick={() => void handleGoogleSignIn()} type="button"><span className="google-mark" aria-hidden="true">G</span>{submitting ? 'Conectando con Google…' : 'Continuar con Google'}</button><div className="login-divider"><span>o usá tu email</span></div><div className="auth-tabs"><button className={mode === 'sign-in' ? 'is-active' : ''} disabled={submitting} onClick={() => { setMode('sign-in'); setErrorMessage(null) }} type="button">Entrar</button><button className={mode === 'sign-up' ? 'is-active' : ''} disabled={submitting} onClick={() => { setMode('sign-up'); setErrorMessage(null) }} type="button">Crear cuenta</button></div><form className="auth-form login-form" onSubmit={(event) => void handleSubmit(event)}><label>Email<input autoComplete="email" disabled={submitting} onChange={(event) => setEmail(event.target.value)} required type="email" value={email} /></label><label>Contraseña<input autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'} disabled={submitting} minLength={6} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} /></label><button className="auth-submit" disabled={submitting} type="submit">{submitting ? 'Procesando…' : mode === 'sign-in' ? 'Iniciar sesión' : 'Crear cuenta'}</button></form>{errorMessage && <p className="auth-message is-error" role="alert">{errorMessage}</p>}</section></main>
 }
