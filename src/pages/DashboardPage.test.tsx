@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 
 const serviceMocks = vi.hoisted(() => ({
   getExercises: vi.fn(),
@@ -42,7 +43,7 @@ describe('DashboardPage states', () => {
   it('announces loading and replaces it with the dashboard', async () => {
     let resolveExercises!: (value: unknown[]) => void
     serviceMocks.getExercises.mockReturnValue(new Promise<unknown[]>((resolve) => { resolveExercises = resolve }))
-    render(<DashboardPage/>)
+    render(<MemoryRouter><DashboardPage/></MemoryRouter>)
     expect(screen.getByRole('status', { name: 'Cargando dashboard' })).toBeTruthy()
 
     await act(async () => resolveExercises([]))
@@ -52,7 +53,7 @@ describe('DashboardPage states', () => {
 
   it('shows load errors and retries with the same refresh flow', async () => {
     serviceMocks.getExercises.mockRejectedValueOnce(new Error('Sin conexión.'))
-    render(<DashboardPage/>)
+    render(<MemoryRouter><DashboardPage/></MemoryRouter>)
     expect((await screen.findByRole('alert')).textContent).toContain('Sin conexión.')
 
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
@@ -62,7 +63,7 @@ describe('DashboardPage states', () => {
 
   it('keeps the workout action available after a visible save error', async () => {
     serviceMocks.markWorkoutComplete.mockRejectedValueOnce(new Error('No se pudo guardar.'))
-    render(<DashboardPage/>)
+    render(<MemoryRouter><DashboardPage/></MemoryRouter>)
     const button = await screen.findByRole('button', { name: 'Marcar entreno de hoy' })
     fireEvent.click(button)
 

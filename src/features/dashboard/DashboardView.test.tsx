@@ -48,8 +48,9 @@ describe('DashboardView', () => {
   })
 
   it('exposes each PR with an accessible name', () => {
-    render(<DashboardView {...defaultProps} progresses={[progress]}/>)
-    expect(screen.getByRole('listitem', { name: 'Press banca: 100 kilogramos' })).toBeTruthy()
+    render(<MemoryRouter><DashboardView {...defaultProps} progresses={[progress]}/></MemoryRouter>)
+    const link = screen.getByRole('link', { name: 'Ver progreso de Press banca: 100 kilogramos' })
+    expect(link.getAttribute('href')).toBe('/progreso?exercise=bench')
   })
 
   it('keeps a single global action for adding a PR', () => {

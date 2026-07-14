@@ -17,4 +17,3 @@ export interface ExerciseProgress {
   latestRecord: PersonalRecord
   totalProgress: number
 }
-export interface ChartPoint { id: string; weight: number; achievedAt: string; createdAt: string; notes: string | null }

@@ -4,6 +4,7 @@ import { AccountPage } from './pages/AccountPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { LoginPage } from './pages/LoginPage'
+import { ProgressPage } from './pages/ProgressPage'
 import { WelcomePage } from './pages/WelcomePage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { PrivateShell } from './routes/PrivateShell'
@@ -21,6 +22,7 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<PrivateShell />}>
           <Route element={<DashboardPage />} path="/dashboard" />
+          <Route element={<ProgressPage />} path="/progreso" />
           <Route element={<AccountPage />} path="/account" />
           <Route element={<HistoryPage />} path="/history" />
         </Route>

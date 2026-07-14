@@ -1,10 +1,9 @@
 import type { Exercise } from '../exercises/exercises.types'
-import { getBestPersonalRecord, getLatestPersonalRecord } from '../personal-records/personalRecords.metrics'
+import { comparePersonalRecordsChronologically, getBestPersonalRecord, getLatestPersonalRecord, getPersonalRecordTimeline } from '../personal-records/personalRecords.metrics'
 import type { PersonalRecord, PersonalRecordSummary } from '../personal-records/personalRecords.types'
-import type { ChartPoint, DashboardSummary, ExerciseProgress, LatestImprovement, RecordWithExercise } from './dashboard.types'
+import type { DashboardSummary, ExerciseProgress, LatestImprovement, RecordWithExercise } from './dashboard.types'
 
-const byChronologicalOrder = (left: PersonalRecord, right: PersonalRecord): number => left.achievedAt.localeCompare(right.achievedAt) || left.createdAt.localeCompare(right.createdAt)
-const byRecentOrder = (left: PersonalRecord, right: PersonalRecord): number => right.achievedAt.localeCompare(left.achievedAt) || right.createdAt.localeCompare(left.createdAt)
+const byRecentOrder = (left: PersonalRecord, right: PersonalRecord): number => -comparePersonalRecordsChronologically(left, right)
 
 const localDateKey = (date: Date): string => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 
@@ -37,10 +36,8 @@ export const getLatestImprovement = (exercises: readonly Exercise[], records: re
   recordsByExercise(records).forEach((exerciseRecords, exerciseId) => {
     const exercise = exerciseMap.get(exerciseId)
     if (!exercise) return
-    let previousBest: number | null = null
-    ;[...exerciseRecords].sort(byChronologicalOrder).forEach((record) => {
-      if (previousBest !== null && record.weight > previousBest) improvements.push({ exercise, record, previousBest, difference: record.weight - previousBest })
-      previousBest = Math.max(previousBest ?? record.weight, record.weight)
+    getPersonalRecordTimeline(exerciseRecords).forEach(({ difference, milestone, previousBest, record }) => {
+      if (milestone === 'improvement' && difference !== null && previousBest !== null) improvements.push({ exercise, record, previousBest, difference })
     })
   })
   return improvements.sort((left, right) => byRecentOrder(left.record, right.record))[0] ?? null
@@ -62,11 +59,9 @@ export const getDashboardSummary = (exercises: readonly Exercise[], records: rea
 }
 
 export const getExerciseProgress = (exercise: Exercise, records: readonly PersonalRecord[]): ExerciseProgress | null => {
-  const exerciseRecords = records.filter((record) => record.exerciseId === exercise.id).sort(byChronologicalOrder)
+  const exerciseRecords = records.filter((record) => record.exerciseId === exercise.id).sort(comparePersonalRecordsChronologically)
   if (exerciseRecords.length === 0) return null
   const firstRecord = exerciseRecords[0]
   const bestRecord = getBestPersonalRecord(exerciseRecords)
   return { exercise, records: exerciseRecords, firstRecord, bestRecord, latestRecord: getLatestPersonalRecord(exerciseRecords), totalProgress: bestRecord.weight - firstRecord.weight }
 }
-
-export const getChartPoints = (progress: ExerciseProgress | null): ChartPoint[] => progress?.records.map((record) => ({ id: record.id, weight: record.weight, achievedAt: record.achievedAt, createdAt: record.createdAt, notes: record.notes })) ?? []
