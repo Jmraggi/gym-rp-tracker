@@ -1,10 +1,12 @@
 import type { Exercise } from '../exercises/exercises.types'
-import { getBestPersonalRecord, getLatestPersonalRecord } from '../personal-records/personalRecords.service'
+import { getBestPersonalRecord, getLatestPersonalRecord } from '../personal-records/personalRecords.metrics'
 import type { PersonalRecord, PersonalRecordSummary } from '../personal-records/personalRecords.types'
 import type { ChartPoint, DashboardSummary, ExerciseProgress, LatestImprovement, RecordWithExercise } from './dashboard.types'
 
 const byChronologicalOrder = (left: PersonalRecord, right: PersonalRecord): number => left.achievedAt.localeCompare(right.achievedAt) || left.createdAt.localeCompare(right.createdAt)
 const byRecentOrder = (left: PersonalRecord, right: PersonalRecord): number => right.achievedAt.localeCompare(left.achievedAt) || right.createdAt.localeCompare(left.createdAt)
+
+const localDateKey = (date: Date): string => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 
 const recordsByExercise = (records: readonly PersonalRecord[]): Map<string, PersonalRecord[]> => {
   const grouped = new Map<string, PersonalRecord[]>()
@@ -42,6 +44,16 @@ export const getLatestImprovement = (exercises: readonly Exercise[], records: re
     })
   })
   return improvements.sort((left, right) => byRecentOrder(left.record, right.record))[0] ?? null
+}
+
+export const getWeeklyTrainingDays = (dates: readonly string[], referenceDate = new Date()): number => {
+  const monday = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate())
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate())
+  sunday.setDate(sunday.getDate() + 6)
+  const mondayKey = localDateKey(monday)
+  const sundayKey = localDateKey(sunday)
+  return new Set(dates.filter((date) => date >= mondayKey && date <= sundayKey)).size
 }
 
 export const getDashboardSummary = (exercises: readonly Exercise[], records: readonly PersonalRecord[]): DashboardSummary => {

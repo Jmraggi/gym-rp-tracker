@@ -39,9 +39,9 @@ export function CalculatorPage() {
 
   const validationMessage = useMemo(() => {
     const rp = parseKilograms(rpInput)
-    if (rpInput.trim() === '') return user && sourceMode === 'saved' ? 'Seleccioná un ejercicio con un PR para calcular.' : 'Ingresá tu RP para ver los pesos de trabajo.'
-    if (rp === null || rp <= 0) return 'Ingresá un RP válido mayor que cero.'
-    if (rp < barWeight * 100) return `El RP debe ser igual o mayor que la barra de ${barWeight} kg.`
+    if (rpInput.trim() === '') return user && sourceMode === 'saved' ? 'Seleccioná un ejercicio con un PR para calcular.' : 'Ingresá tu PR para ver los pesos de trabajo.'
+    if (rp === null || rp <= 0) return 'Ingresá un PR válido mayor que cero.'
+    if (rp < barWeight * 100) return `El PR debe ser igual o mayor que la barra de ${barWeight} kg.`
     return null
   }, [barWeight, rpInput, sourceMode, user])
   const results = useMemo(() => {

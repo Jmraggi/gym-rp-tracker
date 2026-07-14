@@ -1,7 +1,10 @@
 import { getExercises } from '../exercises/exercises.service'
 import type { Exercise } from '../exercises/exercises.types'
 import { supabase } from '../../lib/supabase'
+import { getBestPersonalRecord, getLatestPersonalRecord } from './personalRecords.metrics'
 import type { PersonalRecord, PersonalRecordFormData, PersonalRecordSummary, UpdatePersonalRecordInput } from './personalRecords.types'
+
+export { getBestPersonalRecord, getLatestPersonalRecord } from './personalRecords.metrics'
 
 const getSessionUserId = async (): Promise<string> => {
   const { data, error } = await supabase.auth.getUser()
@@ -75,8 +78,6 @@ const createSummary = (exercise: Exercise, records: PersonalRecord[]): PersonalR
   return { exercise, bestRecord, latestRecord, recordCount: records.length }
 }
 
-export const getBestPersonalRecord = (records: readonly PersonalRecord[]): PersonalRecord => [...records].sort((a, b) => b.weight - a.weight || b.achievedAt.localeCompare(a.achievedAt) || b.createdAt.localeCompare(a.createdAt))[0]
-export const getLatestPersonalRecord = (records: readonly PersonalRecord[]): PersonalRecord => [...records].sort((a, b) => b.achievedAt.localeCompare(a.achievedAt) || b.createdAt.localeCompare(a.createdAt))[0]
 export const notifyPersonalRecordsChanged = (): void => { window.dispatchEvent(new Event('personal-records-updated')) }
 
 export const getPersonalRecordSummaries = async (): Promise<PersonalRecordSummary[]> => {

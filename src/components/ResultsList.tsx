@@ -10,7 +10,7 @@ interface ResultsListProps {
 
 export function ResultsList({ results, message, showEmptySelection }: ResultsListProps) {
   if (message !== null) {
-    const isError = message.includes('válido') || message.startsWith('El RP')
+    const isError = message.includes('válido') || message.startsWith('El PR')
     return <section className="results"><p className={`state-message${isError ? ' is-error' : ''}`}>{message}</p></section>
   }
   if (showEmptySelection) return <section className="results"><p className="state-message">Seleccioná al menos un porcentaje para armar tu serie.</p></section>

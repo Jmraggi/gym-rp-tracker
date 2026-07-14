@@ -7,7 +7,7 @@ export function AppHeader({ backToWelcome = false, hideAction = false }: AppHead
   const { loading, user } = useAuth()
 
   return <header className="topbar">
-    <Link className="brand" to="/">GYM RP</Link>
+    <Link className="brand" to="/">GYM PR</Link>
     <nav aria-label="Navegación principal">
       {backToWelcome ? <Link className="header-link" to="/">Volver al inicio</Link> : !hideAction && !loading && !user && <Link className="header-link" to="/login">Iniciar sesión</Link>}
     </nav>
