@@ -8,7 +8,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       injectRegister: null,
-      includeAssets: ['pwa-192x192.png', 'pwa-512x512.png', 'icons/apple-touch-icon.png'],
+      includeAssets: ['pwa-192x192.png', 'pwa-512x512.png', 'apple-touch-icon.png'],
 
       manifest: {
         name: 'Gym PR Tracker',
